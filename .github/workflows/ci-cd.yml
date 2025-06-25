@@ -106,13 +106,17 @@ jobs:
       - name: Install Poetry
         uses: snok/install-poetry@v1
 
-      # 步骤4: 安装项目依赖
+      # 步骤4：强制Poetry在项目目录内创建.venv 
+      - name: Configure Poetry to create venv in project
+        run: poetry config virtualenvs.in-project true
+
+      # 步骤5: 安装项目依赖
       # 同样，我们需要运行poetry install来创建出Docker构建时需要的.venv文件夹
       # --no-root 表示只安装依赖，不安装项目本身，对于构建来说足够了
       - name: Install dependencies
         run: poetry install --no-root
 
-      # 步骤5: 登录到GitHub容器仓库(GHCR)
+      # 步骤6: 登录到GitHub容器仓库(GHCR)
       # GHCR是GitHub提供的免费Docker镜像存储服务
       # `docker/login-action@v3` 是Docker官方提供的Action
       # 它很智能，`secrets.GITHUB_TOKEN` 是GitHub自动为每个流水线提供的临时令牌，实现了安全的自动登录。
@@ -123,7 +127,7 @@ jobs:
           username: ${{ github.actor }} # `github.actor` 是触发流水线的用户名
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # 步骤6: 为Docker镜像提取元数据(比如标签)
+      # 步骤7: 为Docker镜像提取元数据(比如标签)
       # `docker/metadata-action@v5` 是一个非常有用的辅助工具
       # 它会自动生成一些很棒的镜像标签，比如 `latest`, `分支名`, `commit-sha` 等
       - name: Extract metadata for Docker
@@ -132,7 +136,7 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository }} # 镜像的名称，`github.repository` 就是 "你的用户名/你的仓库名"
 
-      # 步骤7: 构建并推送Docker镜像
+      # 步骤8: 构建并推送Docker镜像
       # `docker/build-push-action@v5` 是核心，负责调用Docker命令
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
