@@ -74,6 +74,7 @@ jobs:
           # 如果还没有配置Codecov，可以暂时把这一整步注释掉
           token: ${{ secrets.CODECOV_TOKEN }} 
 
+
   # --- 第二个任务：构建并推送Docker镜像 ---
   build-and-push:
     name: Build and Push Docker Image
@@ -94,7 +95,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # <<< 新增部分开始 >>>
       # 步骤2: 设置Python环境
       # 这一步和test任务里的一样，因为这是一个全新的虚拟机，需要重新设置环境
       - name: Set up Python
@@ -102,14 +102,18 @@ jobs:
         with:
           python-version: '3.10'
           cache: 'poetry' # 启用对Poetry依赖的缓存，加速流程
-      # 步骤3: 安装项目依赖
+
+      # 步骤3: 安装Poetry
+      - name: Install Poetry
+        run: pipx install poetry
+
+      # 步骤4: 安装项目依赖
       # 同样，我们需要运行poetry install来创建出Docker构建时需要的.venv文件夹
       # --no-root 表示只安装依赖，不安装项目本身，对于构建来说足够了
       - name: Install dependencies
         run: poetry install --no-root
-      # <<< 新增部分结束 >>>
 
-      # 步骤4: 登录到GitHub容器仓库(GHCR)
+      # 步骤5: 登录到GitHub容器仓库(GHCR)
       # GHCR是GitHub提供的免费Docker镜像存储服务
       # `docker/login-action@v3` 是Docker官方提供的Action
       # 它很智能，`secrets.GITHUB_TOKEN` 是GitHub自动为每个流水线提供的临时令牌，实现了安全的自动登录。
@@ -120,7 +124,7 @@ jobs:
           username: ${{ github.actor }} # `github.actor` 是触发流水线的用户名
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # 步骤5: 为Docker镜像提取元数据(比如标签)
+      # 步骤6: 为Docker镜像提取元数据(比如标签)
       # `docker/metadata-action@v5` 是一个非常有用的辅助工具
       # 它会自动生成一些很棒的镜像标签，比如 `latest`, `分支名`, `commit-sha` 等
       - name: Extract metadata for Docker
@@ -129,7 +133,7 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository }} # 镜像的名称，`github.repository` 就是 "你的用户名/你的仓库名"
 
-      # 步骤6: 构建并推送Docker镜像
+      # 步骤7: 构建并推送Docker镜像
       # `docker/build-push-action@v5` 是核心，负责调用Docker命令
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
