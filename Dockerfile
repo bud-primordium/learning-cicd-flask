@@ -13,8 +13,10 @@ WORKDIR /app
 # 这是为了利用Docker的缓存机制。只要这些文件不变，Docker就不会重新执行下面的安装步骤。
 COPY pyproject.toml poetry.lock ./
 
-# 安装Poetry本身，并用它来安装项目的所有依赖
-RUN pip install poetry && poetry install --no-root --only main
+# 安装Poetry本身，配置Poetry在项目目录内创建.venv，然后安装项目的所有依赖
+RUN pip install poetry && \
+    poetry config virtualenvs.in-project true && \
+    poetry install --no-root --only main
 
 # ---- 第二阶段：最终镜像 (Final Stage) ----
 # 再次使用轻量的Python镜像作为最终产品的“包装盒”
