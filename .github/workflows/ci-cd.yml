@@ -1,0 +1,121 @@
+# 流水线的名字，会显示在GitHub的Actions页面上
+name: Advanced Python CI/CD
+
+# "on" 关键字定义了什么事件会“触发”这个流水线
+on:
+  # 当有代码被 push (推送) 到 main 分支时
+  push:
+    branches: ["main"]
+  # 当有一个 pull request (合并请求) 的目标是 main 分支时
+  pull_request:
+    branches: ["main"]
+
+# "jobs" 关键字定义了流水线要执行的一系列任务
+jobs:
+  # --- 第一个任务：测试与分析 ---
+  test-and-analyze:
+    # 任务的名字
+    name: Test, Lint, and Analyze
+    # 指定这个任务要运行在什么样的虚拟机上 (GitHub提供的最新版Ubuntu)
+    runs-on: ubuntu-latest
+    
+    # "steps" 关键字定义了该任务要按顺序执行的一系列步骤
+    steps:
+      # 步骤1: 检出代码
+      # `uses` 关键字表示我们要使用一个现成的“Action”(可复用模块)
+      # `actions/checkout@v4` 是官方提供的，用来把你的仓库代码下载到虚拟机里
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 步骤2: 设置Python环境
+      # `actions/setup-python@v5` 是官方的Action，用来安装指定版本的Python
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      
+      # 步骤3: 安装Poetry
+      # `snok/install-poetry@v1` 是社区提供的，方便我们安装Poetry
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+
+      # 步骤4: 安装依赖
+      # `run` 关键字表示我们要直接在虚拟机的命令行里执行命令
+      # `poetry install` 会读取 pyproject.toml 文件并安装所有依赖
+      - name: Install dependencies with Poetry
+        run: poetry install
+
+      # 步骤5: 运行代码格式化检查
+      # `poetry run <command>` 的意思是“在Poetry管理的虚拟环境中运行<command>”
+      # `black --check .` 会检查代码是否符合black的格式，但不会修改它。如果有不合规的，就会报错。
+      - name: Run code formatting check with Black
+        run: poetry run black --check .
+
+      # 步骤6: 运行代码风格和错误检查
+      - name: Run linting with Flake8
+        run: poetry run flake8 .
+
+      # 步骤7: 运行静态类型检查
+      - name: Run static type checking with MyPy
+        run: poetry run mypy .
+
+      # 步骤8: 运行测试并生成覆盖率报告
+      # `--cov=app` 告诉pytest-cov我们要计算app目录的覆盖率
+      # `--cov-report=xml` 表示生成一个名为 coverage.xml 的报告文件，给后续步骤使用
+      - name: Run tests and generate coverage report
+        run: poetry run pytest --cov=app --cov-report=xml
+
+      # (可选步骤) 步骤9: 上传测试覆盖率报告
+      # 如果配置了Codecov，这一步会把 coverage.xml 文件上传上去，生成漂亮的图表
+      # `secrets.CODECOV_TOKEN` 是从GitHub仓库的Secrets设置中读取的私密信息
+      - name: Upload coverage report to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          # 如果还没有配置Codecov，可以暂时把这一整步注释掉
+          token: ${{ secrets.CODECOV_TOKEN }} 
+
+  # --- 第二个任务：构建并推送Docker镜像 ---
+  build-and-push:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+    # `needs` 关键字表示这个任务必须在 `test-and-analyze` 任务成功后才能开始
+    needs: test-and-analyze
+    # `if` 关键字添加了一个条件：只有当事件是“向main分支推送代码”时，才运行此任务。
+    # 这可以防止每次PR都构建和推送镜像，只在代码真正合并后才做。
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+      # 同样，第一步总是检出代码
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 步骤1: 登录到GitHub容器仓库(GHCR)
+      # GHCR是GitHub提供的免费Docker镜像存储服务
+      # `docker/login-action@v3` 是Docker官方提供的Action
+      # 它很智能，`secrets.GITHUB_TOKEN` 是GitHub自动为每个流水线提供的临时令牌，实现了安全的自动登录。
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }} # `github.actor` 是触发流水线的用户名
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # 步骤2: 为Docker镜像提取元数据(比如标签)
+      # `docker/metadata-action@v5` 是一个非常有用的辅助工具
+      # 它会自动生成一些很棒的镜像标签，比如 `latest`, `分支名`, `commit-sha` 等
+      - name: Extract metadata for Docker
+        id: meta # 给这个步骤一个ID，方便后面引用它的输出
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }} # 镜像的名称，`github.repository` 就是 "你的用户名/你的仓库名"
+
+      # 步骤3: 构建并推送Docker镜像
+      # `docker/build-push-action@v5` 是核心，负责调用Docker命令
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: . # Dockerfile所在的上下文路径 (当前目录)
+          push: true # `true` 表示不仅构建，还要推送到仓库
+          tags: ${{ steps.meta.outputs.tags }} # 使用上一步生成的标签
+          labels: ${{ steps.meta.outputs.labels }} # 使用上一步生成的元数据标签
+
