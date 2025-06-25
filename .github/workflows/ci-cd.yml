@@ -101,11 +101,10 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-          cache: 'poetry' # 启用对Poetry依赖的缓存，加速流程
 
       # 步骤3: 安装Poetry
       - name: Install Poetry
-        run: pipx install poetry
+        uses: snok/install-poetry@v1
 
       # 步骤4: 安装项目依赖
       # 同样，我们需要运行poetry install来创建出Docker构建时需要的.venv文件夹
