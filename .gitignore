@@ -1,0 +1,31 @@
+# 字节码和缓存文件
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Poetry & venv
+.venv/
+# poetry.lock # 本仓库为直接部署的应用项目，不忽略lock文件；若分发为库则应忽略
+
+# 测试和覆盖率报告
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# IDE 和编辑器配置
+.vscode/
+.idea/
+
+# macOS 系统文件
+.DS_Store
+._*
+
+# 构建和分发产物
+/dist/
+/build/
+*.egg-info/
+
+# 敏感信息 (虽然最好用其他方式管理，但加上保险)
+.env
+*.env

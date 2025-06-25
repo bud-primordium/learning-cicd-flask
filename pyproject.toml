@@ -1,0 +1,38 @@
+# [tool.poetry] 部分：定义项目的基本信息
+[tool.poetry]
+name = "learning-cicd-flask"                             # 项目名称
+version = "0.1.0"                                        # 项目版本号
+description = "一个用于学习现代化CI/CD和Flask的演示项目。"               # 项目描述
+authors = ["Gilbert Young <gilbertyoung0015@gmail.com>"] # 作者信息
+
+# --- 告诉poetry路径，防止报错 ---
+packages = [{ include = "app" }]
+# ----------------------------
+
+# [tool.poetry.dependencies] 部分：定义项目的“生产”依赖
+# 这些是应用在最终线上环境运行时必须安装的包。
+[tool.poetry.dependencies]
+python = "^3.10"     # 指定项目兼容的Python版本 (3.10及以上, 但4.0以下)
+flask = "^2.2.3"     # Web框架
+gunicorn = "^20.1.0" # 一个更专业的Python Web服务器，比Flask自带的更适合生产环境
+
+# [tool.poetry.group.dev.dependencies] 部分：定义项目的“开发”依赖
+# 这些包只在开发和测试时需要，最终的生产环境不需要它们，可以减小部署包的大小。
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.2.1"     # 我们用来写和跑测试的框架
+pytest-cov = "^4.0.0" # pytest的插件，用来计算测试覆盖了多少代码
+black = "^23.1.0"     # 一个代码“格式化”工具，能自动把你的代码整理成统一、漂亮的风格
+flake8 = "^6.0.0"     # 代码“检查”工具，检查代码风格和潜在错误
+mypy = "^1.0.1"       # “静态类型检查”工具，检查代码中的类型注解是否正确
+
+# [build-system] 部分：告诉Python如何构建这个项目
+# 这部分通常不需要修改，是Poetry的标准配置。
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.flake8]
+# 将最大行长限制放宽到88个字符，以匹配black工具的默认设置
+max-line-length = 88
+# 忽略E203这个错误码 (冒号前的空格问题)，因为它和black的格式化风格有冲突
+extend-ignore = "E203"
